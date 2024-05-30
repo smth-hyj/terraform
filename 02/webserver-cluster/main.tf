@@ -47,17 +47,17 @@ resource "aws_security_group" "mySGforLC" {
 resource "aws_vpc_security_group_ingress_rule" "allow_8080_ipv4" {
   security_group_id = aws_security_group.mySGforLC.id
   cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 8080
+  from_port         = var.inport_web
   ip_protocol       = "tcp"
-  to_port           = 8080
+  to_port           = var.outport_web
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_ssh_ipv4" {
   security_group_id = aws_security_group.mySGforLC.id
   cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 22
+  from_port         = var.inport_ssh
   ip_protocol       = "tcp"
-  to_port           = 22
+  to_port           = var.outport_ssh
 }
 
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic" {
@@ -73,11 +73,7 @@ resource "aws_launch_configuration" "myLC" {
   instance_type = "t2.micro"
   security_groups = [aws_security_group.mySGforLC.id]
 
-  user_data = <<-EOF
-    #!/bin/bash
-    echo "myWEB Server" > index.html
-    nohup busybox httpd -f -p 8080 &
-    EOF
+  user_data = file("userdata.tpl")
 
   lifecycle {
     create_before_destroy = true # 꼭 넣어야함
@@ -107,7 +103,7 @@ resource "aws_autoscaling_group" "myASG" {
 # Target Group
 resource "aws_lb_target_group" "myTGASG" {
   name     = "myTGASG"
-  port     = 8080
+  port     = var.inport_web
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
 
@@ -115,7 +111,7 @@ resource "aws_lb_target_group" "myTGASG" {
   
   path = "/"
     protocol = "HTTP"
-    port = 8080
+    port = var.inport_web
     matcher = "200"
     interval = 10
     healthy_threshold = 2
@@ -139,7 +135,7 @@ resource "aws_lb" "myALB" {
 # Listener
 resource "aws_lb_listener" "front_end" {
   load_balancer_arn = aws_lb.myALB.arn
-  port              = "80"
+  port              = "${var.inport_web}"
   protocol          = "HTTP"
 
   default_action {
