@@ -1,0 +1,2 @@
+data.aws_ami.amazonLinux
+aws_instance.myInstance
